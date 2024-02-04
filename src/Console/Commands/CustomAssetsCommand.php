@@ -55,7 +55,7 @@ class CustomAssetsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'nova:custom-assets';
+    protected $signature = 'nova:custom-assets {--quick}';
 
     /**
      * The console command description.
@@ -83,16 +83,31 @@ class CustomAssetsCommand extends Command
         $this->process = new Process;
         $this->novaPath = base_path($this->novaPath);
 
+        if($this->option('quick')) {
+            $this->info('Quick mode');
+
+            $this->copyNewComponents();
+            $this->replaceComponents();
+            $this->registerPages();
+            $this->npmProduction();
+            $this->publishNovaAssets();
+            $this->saveCurrentNovaVersion();
+            return 0;
+        }
+
         $this->reinstallNova();
         $this->webpack();
         $this->npmInstall();
         $this->postCssConfig();
+        $this->copyNewComponents();
         $this->replaceComponents();
         $this->registerPages();
         $this->addCustomCSS();
         $this->npmProduction();
         $this->publishNovaAssets();
         $this->saveCurrentNovaVersion();
+
+        return 0;
 
         return 0;
     }
@@ -112,6 +127,25 @@ class CustomAssetsCommand extends Command
             $this->novaStorage->put('resources/css/app.css', $cssContent);
         }
     }
+
+    /**
+     * @return void
+     */
+    protected function copyNewComponents(): void
+    {
+        $files = $this->storage->files('New/components');
+
+        foreach ($files as $file) {
+            $info = pathinfo($file);
+            $basename = basename($file);
+
+            if ($info['extension'] == 'vue') {
+                $this->info(sprintf('Copying %s', $file));
+                $content = $this->storage->get($file);
+                $this->novaStorage->put('resources/js/components/' . $basename, $content);
+            }
+        }
+    }    
 
     /**
      * @return void
